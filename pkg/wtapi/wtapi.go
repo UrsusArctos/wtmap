@@ -12,6 +12,7 @@ const (
 	// WT API endpoints
 	apiMapInfo = "map_info.json"
 	apiMapObj  = "map_obj.json"
+	apiMapFile = "map.img?gen=%d"
 )
 
 type (
@@ -114,6 +115,16 @@ func (wtapic *TWTAPIClient) IsInSession() bool {
 		}
 	}
 	return false
+}
+
+// Query: get current map generation
+func (wtapic TWTAPIClient) GetMapGeneration() int64 {
+	return wtapic.mapInfo.MapGeneration
+}
+
+// Query: get current map
+func (wtapic TWTAPIClient) GetMapFile() ([]byte, error) {
+	return wtapic.queryWTAPI(fmt.Sprintf(apiMapFile, wtapic.GetMapGeneration()))
 }
 
 // Query: retrieve map objects (only works while in session)
