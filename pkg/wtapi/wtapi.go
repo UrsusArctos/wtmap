@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"image/color"
 	"io"
 	"net/http"
 )
@@ -13,6 +14,10 @@ const (
 	apiMapInfo = "map_info.json"
 	apiMapObj  = "map_obj.json"
 	apiMapFile = "map.img?gen=%d"
+	// WT states
+	WTClientStateNotStarted = iota
+	WTClientStateIdle       = iota
+	WTClientStateInSession  = iota
 )
 
 type (
@@ -28,17 +33,19 @@ type (
 
 	TMapObjects []TMapObject
 
+	TObjectColor = []uint8
+
 	TMapObject struct {
-		Type            string  `json:"type"`
-		HTMLColor       string  `json:"color"`
-		TMabObjectColor []uint8 `json:"color[]"`
-		Blink           int     `json:"blink"`
-		Icon            string  `json:"icon"`
-		IconBg          string  `json:"icon_bg"`
+		Type        string       `json:"type"`
+		HTMLColor   string       `json:"color"`
+		ObjectColor TObjectColor `json:"color[]"`
+		Blink       int          `json:"blink"`
+		Icon        string       `json:"icon"`
+		IconBg      string       `json:"icon_bg"`
 		// Coordinates of a point object (all vehicles)
 		// Generally in the form of float values between 0 and 1 relative to the current (!) generation map
 		// NOTE: Objects outside current generation map (such as airfields, aircraft spawns etc) may have coordinates beyond [0..1]
-		// NOTE: New map generation may occur each time another vehicle enters the session
+		// NOTE: New map generation may occur each time another vehicle is selected in the lobby lineup
 		X *float64 `json:"x,omitempty"`
 		Y *float64 `json:"y,omitempty"`
 		// Course unit vector for player, aircraft and aircraft respawn points
@@ -59,6 +66,11 @@ type (
 		mapInfo    TMapInfo
 	}
 )
+
+// Color adapter
+func (mobj TMapObject) AdaptColor() color.RGBA {
+	return color.RGBA{R: mobj.ObjectColor[0], G: mobj.ObjectColor[1], B: mobj.ObjectColor[2], A: 0xFF}
+}
 
 // WTAPIC constructor
 func NewClient(hName string) TWTAPIClient {
@@ -96,25 +108,23 @@ func (wtapic TWTAPIClient) queryWTAPI(endPoint string) ([]byte, error) {
 	return nil, qErr
 }
 
-// Specific WTAPI queries
-// Query: whether WT API server is accepting calls now
-func (wtapic TWTAPIClient) IsWTRunning() bool {
-	_, err := wtapic.queryWTAPI("")
-	return (err == nil)
-}
-
-// Query: whether the player is currently in battle/mission/testdrive, also updates MapInfo
-func (wtapic *TWTAPIClient) IsInSession() bool {
+// WTAPIC queries
+// Query: determine if WT Client is running and if yes, if it is in game session
+func (wtapic *TWTAPIClient) GetWTClientState() int {
 	qString, err := wtapic.queryWTAPI(apiMapInfo)
 	if err == nil {
 		qDec := json.NewDecoder(bytes.NewReader(qString))
 		qDec.UseNumber()
 		decodErr := qDec.Decode(&wtapic.mapInfo)
 		if decodErr == nil {
-			return wtapic.mapInfo.Valid
+			if wtapic.mapInfo.Valid {
+				return WTClientStateInSession
+			} else {
+				return WTClientStateIdle
+			}
 		}
 	}
-	return false
+	return WTClientStateNotStarted
 }
 
 // Query: get current map generation
@@ -139,32 +149,4 @@ func (wtapic TWTAPIClient) GetMapObjects() (mapObj TMapObjects) {
 		}
 	}
 	return TMapObjects{}
-}
-
-// TODO: remove this functions in production build
-func floatPtrString(desc string, flt *float64) string {
-	if flt != nil {
-		return fmt.Sprintf("%s=%f ", desc, *flt)
-	} else {
-		return ""
-	}
-}
-
-// TODO: remove this functions in production build
-func (wtapic TWTAPIClient) DumpMapMeta() {
-	fmt.Printf("mapinfo %+v\n", wtapic.mapInfo)
-	mo := wtapic.GetMapObjects()
-	for i := range mo {
-		fmt.Printf("%d:%s:%s ", wtapic.mapInfo.MapGeneration, mo[i].Type, mo[i].Icon)
-		fmt.Print(floatPtrString("X", mo[i].X))
-		fmt.Print(floatPtrString("Y", mo[i].Y))
-		fmt.Print(floatPtrString("DX", mo[i].DX))
-		fmt.Print(floatPtrString("DY", mo[i].DY))
-		fmt.Print(floatPtrString("SX", mo[i].SX))
-		fmt.Print(floatPtrString("SY", mo[i].SY))
-		fmt.Print(floatPtrString("EX", mo[i].EX))
-		fmt.Print(floatPtrString("EY", mo[i].EY))
-		fmt.Println()
-	}
-	fmt.Println("================")
 }
