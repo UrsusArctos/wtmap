@@ -3,6 +3,7 @@ package wtmapobj
 import (
 	"UrsusArctos/wtmap/internal/pkg/wtmapmain"
 	"UrsusArctos/wtmap/pkg/wtapi"
+	"fmt"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -12,12 +13,15 @@ import (
 )
 
 const (
-	typeAirfield      = "airfield"
-	typeAirRespawn    = "respawn_base_fighter"
-	typeGroundRespawn = "respawn_base_tank"
-	typeCaptureZone   = "capture_zone"
-	typeGroundModel   = "ground_model"
-	typeAircraft      = "aircraft"
+	typeAirfield          = "airfield"
+	typeAirRespawnFighter = "respawn_base_fighter"
+	typeAirRespawnBomber  = "respawn_base_bomber"
+	typeGroundRespawn     = "respawn_base_tank"
+	typeCaptureZone       = "capture_zone"
+	typeBombingPoint      = "bombing_point"
+	typeDefendingPoint    = "defending_point"
+	typeGroundModel       = "ground_model"
+	typeAircraft          = "aircraft"
 
 	// ground vehicles
 	iconPlayer        = "Player"
@@ -28,6 +32,7 @@ const (
 	iconSPAA          = "SPAA"
 	iconAirdefence    = "Airdefence"
 	iconWheeled       = "Wheeled"
+	iconTracked       = "Tracked"
 	iconLightTank     = "LightTank"
 	iconMediumTank    = "MediumTank"
 	iconHeavyTank     = "HeavyTank"
@@ -37,6 +42,7 @@ const (
 	iconAirRespawn = "respawn_base_fighter"
 	iconFighter    = "Fighter"
 	iconBomber     = "Bomber"
+	iconAssault    = "Assault"
 
 	playerCircleRadius       = 6
 	headingMarkerLength      = 16
@@ -59,6 +65,8 @@ const (
 	vgStructure      = "l"
 	vgFighter        = "."
 	vgBomber         = ":"
+	vgBombingPoint   = "8"
+	vgDefendingPoint = "9"
 )
 
 func calcHeadingMarker(obj wtapi.TMapObject) ( /*deltaX, deltaY*/ float64, float64) {
@@ -145,7 +153,7 @@ func DrawMapObjects(canvas *ebiten.Image, wtmain *wtmapmain.TWTMapMain) {
 				{
 					drawLinearAirfield(canvas, wtmain, wtmain.MapObj[i])
 				}
-			case typeAirRespawn:
+			case typeAirRespawnFighter, typeAirRespawnBomber:
 				{
 					drawAirRespawnDirected(canvas, wtmain, wtmain.MapObj[i], false)
 				}
@@ -157,9 +165,17 @@ func DrawMapObjects(canvas *ebiten.Image, wtmain *wtmapmain.TWTMapMain) {
 				{
 					drawVehicleGlyph(canvas, wtmain, wtmain.MapObj[i], vgCaptureZone, 8, -8, false)
 				}
+			case typeBombingPoint:
+				{
+					drawVehicleGlyph(canvas, wtmain, wtmain.MapObj[i], vgBombingPoint, 9, -9, false)
+				}
+			case typeDefendingPoint:
+				{
+					drawVehicleGlyph(canvas, wtmain, wtmain.MapObj[i], vgDefendingPoint, 9, -9, false)
+				}
 			case typeAircraft:
 				switch wtmain.MapObj[i].Icon {
-				case iconFighter:
+				case iconFighter, iconAssault:
 					{
 						drawVehicleGlyphRotated(canvas, wtmain, wtmain.MapObj[i], vgFighter, 9, -1, false)
 					}
@@ -186,7 +202,7 @@ func DrawMapObjects(canvas *ebiten.Image, wtmain *wtmapmain.TWTMapMain) {
 						{
 							drawVehicleGlyph(canvas, wtmain, wtmain.MapObj[i], vgSPAA, 3, -1, false)
 						}
-					case iconWheeled:
+					case iconWheeled, iconTracked:
 						{
 							drawVehicleGlyph(canvas, wtmain, wtmain.MapObj[i], vgWheeled, -2, 4, false)
 						}
